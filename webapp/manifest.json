@@ -1,0 +1,206 @@
+{
+  "_version": "1.48.0",
+  "sap.app": {
+    "id": "zgsp26.conf.mng.confmngcatalog",
+    "type": "application",
+    "i18n": "i18n/i18n.properties",
+    "applicationVersion": {
+      "version": "0.0.1"
+    },
+    "title": "{{appTitle}}",
+    "description": "{{appDescription}}",
+    "resources": "resources.json",
+    "sourceTemplate": {
+      "id": "@sap/generator-fiori:lrop",
+      "version": "1.20.4",
+      "toolsId": "ef4deb35-fb32-49af-bcde-8692fea3e6f9"
+    },
+    "dataSources": {
+      "annotation": {
+        "type": "ODataAnnotation",
+        "uri": "annotations/annotation.xml",
+        "settings": {
+          "localUri": "annotations/annotation.xml"
+        }
+      },
+      "mainService": {
+        "uri": "/sap/opu/odata4/sap/zui_conf_catalog/srvd/sap/zsd_conf_catalog/0001/",
+        "type": "OData",
+        "settings": {
+          "annotations": [
+            "annotation"
+          ],
+          "localUri": "localService/mainService/metadata.xml",
+          "odataVersion": "4.0"
+        }
+      }
+    },
+    "crossNavigation": {
+      "inbounds": {
+        "ConfigCatalog-manage": {
+          "semanticObject": "ConfigCatalog",
+          "action": "manage",
+          "title": "{{ConfigCatalog-manage.flpTitle}}",
+          "subTitle": "{{ConfigCatalog-manage.flpSubtitle}}",
+          "signature": {
+            "parameters": {},
+            "additionalParameters": "allowed"
+          }
+        }
+      }
+    }
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "icons": {
+      "icon": "",
+      "favIcon": "",
+      "phone": "",
+      "phone@2": "",
+      "tablet": "",
+      "tablet@2": ""
+    },
+    "deviceTypes": {
+      "desktop": true,
+      "tablet": true,
+      "phone": true
+    }
+  },
+  "sap.ui5": {
+    "flexEnabled": true,
+    "dependencies": {
+      "minUI5Version": "1.108.33",
+      "libs": {
+        "sap.m": {},
+        "sap.ui.core": {},
+        "sap.fe.templates": {}
+      }
+    },
+    "contentDensities": {
+      "compact": true,
+      "cozy": true
+    },
+    "models": {
+      "i18n": {
+        "type": "sap.ui.model.resource.ResourceModel",
+        "settings": {
+          "bundleName": "zgsp26.conf.mng.confmngcatalog.i18n.i18n"
+        }
+      },
+      "": {
+        "dataSource": "mainService",
+        "preload": true,
+        "settings": {
+          "synchronizationMode": "None",
+          "operationMode": "Server",
+          "autoExpandSelect": true,
+          "earlyRequests": true
+        }
+      },
+      "@i18n": {
+        "type": "sap.ui.model.resource.ResourceModel",
+        "uri": "i18n/i18n.properties"
+      }
+    },
+    "resources": {
+      "css": []
+    },
+    "routing": {
+      "config": {},
+      "routes": [
+        {
+          "pattern": ":?query:",
+          "name": "ConfigCatalogList",
+          "target": "ConfigCatalogList"
+        },
+        {
+          "pattern": "ConfigCatalog({key}):?query:",
+          "name": "ConfigCatalogObjectPage",
+          "target": "ConfigCatalogObjectPage"
+        },
+        {
+          "pattern": "ConfigCatalog({key})/_FieldDef({key2}):?query:",
+          "name": "ConfigFieldDefObjectPage",
+          "target": "ConfigFieldDefObjectPage"
+        }
+      ],
+      "targets": {
+        "ConfigCatalogList": {
+          "type": "Component",
+          "id": "ConfigCatalogList",
+          "name": "sap.fe.templates.ListReport",
+          "options": {
+            "settings": {
+              "contextPath": "/ConfigCatalog",
+              "variantManagement": "Page",
+              "navigation": {
+                "ConfigCatalog": {
+                  "detail": {
+                    "route": "ConfigCatalogObjectPage"
+                  }
+                }
+              },
+              "controlConfiguration": {
+                "@com.sap.vocabularies.UI.v1.LineItem": {
+                  "tableSettings": {
+                    "type": "ResponsiveTable"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "ConfigCatalogObjectPage": {
+          "type": "Component",
+          "id": "ConfigCatalogObjectPage",
+          "name": "sap.fe.templates.ObjectPage",
+          "options": {
+            "settings": {
+              "editableHeaderContent": false,
+              "contextPath": "/ConfigCatalog",
+              "content": {
+                "header": {
+                  "actions": {
+                    "Maintain": {
+                      "text": "{i18n>maintain}",
+                      "press": "zgsp26.conf.mng.confmngcatalog.ext.controller.MaintainAction.onMaintainPress",
+                      "visible": true,
+                      "enabled": true
+                    }
+                  }
+                }
+              },
+              "navigation": {
+                "_FieldDef": {
+                  "detail": {
+                    "route": "ConfigFieldDefObjectPage"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "ConfigFieldDefObjectPage": {
+          "type": "Component",
+          "id": "ConfigFieldDefObjectPage",
+          "name": "sap.fe.templates.ObjectPage",
+          "options": {
+            "settings": {
+              "editableHeaderContent": false,
+              "contextPath": "/ConfigCatalog/_FieldDef"
+            }
+          }
+        }
+      }
+    }
+  },
+  "sap.fiori": {
+    "registrationIds": [],
+    "archeType": "transactional"
+  },
+  "sap.fe": {
+    "app": {
+      "enableLazyLoading": true
+    }
+  }
+}

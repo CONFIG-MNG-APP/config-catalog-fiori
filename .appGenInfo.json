@@ -1,0 +1,32 @@
+{
+  "generationParameters": {
+    "generationDate": "Tue Mar 10 2026 17:29:57 GMT+0700 (Indochina Time)",
+    "generatorPlatform": "Visual Studio Code",
+    "serviceType": "OData URL",
+    "metadataFilename": "",
+    "serviceUrl": "https://s40lp1.ucc.cit.tum.de/sap/opu/odata4/sap/zui_conf_catalog/srvd/sap/zsd_conf_catalog/0001/",
+    "appName": "conf-mng-catalog",
+    "appTitle": "Configuration Catalog",
+    "appDescription": "Configuration Catalog Management Application",
+    "appNamespace": "zgsp26.conf.mng",
+    "ui5Theme": "sap_horizon",
+    "ui5Version": "1.108.33",
+    "enableEslint": false,
+    "enableTypeScript": false,
+    "showMockDataInfo": true,
+    "generatorVersion": "1.20.4",
+    "template": "List Report Page V4",
+    "generatorName": "SAP Fiori Application Generator",
+    "entityRelatedConfig": [
+      {
+        "type": "Main Entity",
+        "value": "ConfigCatalog"
+      },
+      {
+        "type": "Navigation Entity",
+        "value": "_FieldDef"
+      }
+    ],
+    "launchText": "To launch the generated application, run the following from the generated application root folder:\n\n```\n    npm start\n```"
+  }
+}
