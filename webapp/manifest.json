@@ -33,6 +33,13 @@
           "localUri": "localService/mainService/metadata.xml",
           "odataVersion": "4.0"
         }
+      },
+      "reqService": {
+        "uri": "/sap/opu/odata4/sap/zui_conf_req/srvd/sap/zsd_conf_req/0001/",
+        "type": "OData",
+        "settings": {
+          "odataVersion": "4.0"
+        }
       }
     },
     "crossNavigation": {
@@ -95,6 +102,14 @@
           "operationMode": "Server",
           "autoExpandSelect": true,
           "earlyRequests": true
+        }
+      },
+      "reqSrv": {
+        "dataSource": "reqService",
+        "preload": true,
+        "settings": {
+          "operationMode": "Server",
+          "autoExpandSelect": true
         }
       },
       "@i18n": {
@@ -162,7 +177,7 @@
                 "header": {
                   "actions": {
                     "Maintain": {
-                      "text": "{i18n>maintain}",
+                      "text": "Maintain via Request",
                       "press": "zgsp26.conf.mng.confmngcatalog.ext.controller.MaintainAction.onMaintainPress",
                       "visible": true,
                       "enabled": true

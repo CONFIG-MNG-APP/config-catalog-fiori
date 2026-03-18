@@ -17,7 +17,7 @@ builder:
           url: https://s40lp1.ucc.cit.tum.de
           client: '324'
         app:
-          name: /UI5/UI5_REPO
+          name: ZCONFMNGCAT
           description: Configuration Catalog Fiori App
           package: ZGSP26SAP06
           transport: S40K908611
