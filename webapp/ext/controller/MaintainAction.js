@@ -1,63 +1,80 @@
 sap.ui.define(
-  [
-    "sap/m/MessageBox",
-    "sap/ui/core/BusyIndicator",
-    "sap/ui/model/odata/v4/ODataModel",
-  ],
-  function (MessageBox, BusyIndicator, ODataModel) {
+  ["sap/m/MessageBox", "sap/ui/core/BusyIndicator"],
+  function (MessageBox, BusyIndicator) {
     "use strict";
 
-    let _oReqModel = null;
-
-    function getReqModel() {
-      if (!_oReqModel) {
-        const sSapClient =
-          new URLSearchParams(window.location.search).get("sap-client") ||
-          "324";
-
-        _oReqModel = new ODataModel({
-          serviceUrl:
-            "/sap/opu/odata4/sap/zui_conf_req/srvd/sap/zsd_conf_req/0001/?sap-client=" +
-            sSapClient,
-          synchronizationMode: "None",
-          operationMode: "Server",
-          autoExpandSelect: true,
-        });
-      }
-      return _oReqModel;
+    function _getSapClient() {
+      return (
+        new URLSearchParams(window.location.search).get("sap-client") || "324"
+      );
     }
 
-    // Fetch CSRF token từ service trước khi gọi action
-    async function fetchCsrfToken(sServiceUrl) {
-      const oResponse = await fetch(sServiceUrl, {
+    function _getReqServiceUrl() {
+      return (
+        "/sap/opu/odata4/sap/zui_conf_req/srvd/sap/zsd_conf_req/0001/?sap-client=" +
+        _getSapClient()
+      );
+    }
+
+    // Map TargetCds -> TargetApp (same logic as backend)
+    function _mapTargetApp(sTargetCds) {
+      const oMap = {
+        ZI_MM_ROUTE_CONF: "MM_ROUTE_REQ",
+        ZI_MM_SAFE_STOCK: "MM_SAFE_REQ",
+        ZI_SD_PRICE_CONF: "SD_PRICE_REQ",
+        ZI_FI_LIMIT_CONF: "FI_LIMIT_REQ",
+      };
+      return oMap[sTargetCds] || "CONF_REQ";
+    }
+
+    async function _fetchCsrfToken(sServiceUrl) {
+      const oResp = await fetch(sServiceUrl, {
         method: "GET",
         headers: {
           "X-CSRF-Token": "Fetch",
           "X-Requested-With": "XMLHttpRequest",
         },
         credentials: "include",
-      }); // THÊM ĐOẠN NÀY
-      const sRawBody = await oResponse.text();
-      console.log("Response status:", oResponse.status);
-      console.log("Response body:", sRawBody);
+      });
+      if (!oResp.ok) return null;
+      return oResp.headers.get("X-CSRF-Token") || null;
+    }
 
-      if (!oResponse.ok) {
-        // parse sau khi đã log
-        let oErr = {};
-        try {
-          oErr = JSON.parse(sRawBody);
-        } catch {}
-        MessageBox.error(oErr?.error?.message || "Error " + oResponse.status);
-        return;
-      }
+    // Query newest request by ConfId after action
+    async function _queryNewReqId(sConfId, sCsrfToken) {
+      const sUrl =
+        "/sap/opu/odata4/sap/zui_conf_req/srvd/sap/zsd_conf_req/0001/" +
+        "ZC_CONF_REQ_H" +
+        "?$filter=ConfId eq " + sConfId +
+        "&$orderby=CreatedAt desc" +
+        "&$top=1" +
+        "&$select=ReqId,ConfId,ModuleId" +
+        "&sap-client=" + _getSapClient();
 
-      return oResponse.headers.get("X-CSRF-Token") || "";
+      console.log("Query URL:", sUrl);
+
+      const oResp = await fetch(sUrl, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+        },
+        credentials: "include",
+      });
+
+      if (!oResp.ok) return null;
+
+      const oData = await oResp.json();
+      console.log("Query result:", JSON.stringify(oData));
+
+      const aResults = oData?.value || [];
+      return aResults.length > 0 ? aResults[0] : null;
     }
 
     return {
       onMaintainPress: async function (oContext) {
         try {
-          // ── 1. Lấy binding context ──
+          // 1. Get binding context
           let oBindingContext = null;
           if (oContext && typeof oContext.requestObject === "function") {
             oBindingContext = oContext;
@@ -70,7 +87,7 @@ sap.ui.define(
             return;
           }
 
-          // ── 2. Đọc data từ catalog ──
+          // 2. Read catalog data
           const oData = await oBindingContext.requestObject();
           const sConfId = oData?.ConfId || "";
           const sModuleId = oData?.ModuleId || "";
@@ -86,33 +103,23 @@ sap.ui.define(
 
           BusyIndicator.show(0);
 
-          // ── 3. Fetch CSRF token ──
-          const sSapClient =
-            new URLSearchParams(window.location.search).get("sap-client") ||
-            "324";
-
-          const sServiceUrl =
-            "/sap/opu/odata4/sap/zui_conf_req/srvd/sap/zsd_conf_req/0001/?sap-client=" +
-            sSapClient;
-          const sCsrfToken = await fetchCsrfToken(sServiceUrl);
-
-          console.log("CSRF Token:", sCsrfToken);
+          // 3. CSRF token
+          const sServiceUrl = _getReqServiceUrl();
+          const sCsrfToken = await _fetchCsrfToken(sServiceUrl);
 
           if (!sCsrfToken) {
             BusyIndicator.hide();
-            MessageBox.error("Không lấy được CSRF token");
+            MessageBox.error("Cannot fetch CSRF token");
             return;
           }
 
-          // ── 4. Gọi action bằng fetch trực tiếp (chắc chắn nhất) ──
+          // 4. Call createRequest action
           const sActionUrl =
             "/sap/opu/odata4/sap/zui_conf_req/srvd/sap/zsd_conf_req/0001/" +
             "ZC_CONF_REQ_H/" +
             "com.sap.gateway.srvd.zsd_conf_req.v0001.createRequest" +
-            "?sap-client=" +
-            sSapClient;
+            "?sap-client=" + _getSapClient();
 
-          console.log("Action URL:", sActionUrl);
           const oBody = {
             ConfId: sConfId,
             ModuleId: sModuleId,
@@ -123,10 +130,9 @@ sap.ui.define(
             Reason: "",
             Notes: "",
           };
-          const sBodyStr = JSON.stringify(oBody);
-          console.log("=== POST body ===", sBodyStr);
-          console.log("ConfId type:", typeof sConfId, "value:", sConfId);
-          console.log("ConfId length:", sConfId.length);
+
+          console.log("=== POST body ===", JSON.stringify(oBody));
+
           const oResponse = await fetch(sActionUrl, {
             method: "POST",
             headers: {
@@ -139,48 +145,45 @@ sap.ui.define(
             body: JSON.stringify(oBody),
           });
 
-          BusyIndicator.hide();
-
           if (!oResponse.ok) {
+            BusyIndicator.hide();
             const oErr = await oResponse.json().catch(() => ({}));
-            const sMsg =
+            MessageBox.error(
               oErr?.error?.message ||
-              "createRequest failed: " + oResponse.status;
-            MessageBox.error(sMsg);
+                "createRequest failed: " + oResponse.status
+            );
             return;
           }
-          // Đọc response
-          const oResult = await oResponse.json();
-          console.log("createRequest result:", JSON.stringify(oResult));
-          const oFirst = Array.isArray(oResult?.value)
-            ? oResult.value[0]
-            : oResult?.value || oResult;
 
-          const sReqId = oFirst?.ReqId || "";
-          const sTargetApp = oFirst?.TargetApp || "";
+          console.log("createRequest OK, status:", oResponse.status);
+
+          // 5. Query for the newly created request
+          const oNewReq = await _queryNewReqId(sConfId, sCsrfToken);
+
+          BusyIndicator.hide();
+
+          if (!oNewReq || !oNewReq.ReqId) {
+            MessageBox.error(
+              "Request created but could not retrieve ReqId"
+            );
+            return;
+          }
+
+          const sReqId = oNewReq.ReqId;
+          const sTargetApp = _mapTargetApp(sTargetCds);
 
           console.log("ReqId:", sReqId, "TargetApp:", sTargetApp);
 
-          if (!sReqId) {
-            MessageBox.error("createRequest không trả về ReqId");
-            return;
-          }
-
-          // ── 5. Navigate ──
-          const sUrl =
-            "http://localhost:8082/test/flp.html" +
-            "?sap-client=" +
-            sSapClient +
-            "&sap-ui-xx-viewCache=false" +
-            "&ReqId=" +
-            encodeURIComponent(sReqId) +
-            "&TargetApp=" +
-            encodeURIComponent(sTargetApp) +
-            "&mode=edit" +
-            "#app-preview";
-
-          console.log("Navigate to:", sUrl);
-          window.location.href = sUrl;
+          // 6. Navigate
+          MessageBox.success(
+            "Request created successfully!\nReqId: " + sReqId,
+            {
+              onClose: function () {
+                // Optional: navigate to request app
+                // window.location.href = "...";
+              },
+            }
+          );
         } catch (e) {
           BusyIndicator.hide();
           console.error("onMaintainPress error:", e);
@@ -188,5 +191,5 @@ sap.ui.define(
         }
       },
     };
-  },
+  }
 );
