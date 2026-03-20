@@ -45,11 +45,13 @@ sap.ui.define(
       const sUrl =
         "/sap/opu/odata4/sap/zui_conf_req/srvd/sap/zsd_conf_req/0001/" +
         "ZC_CONF_REQ_H" +
-        "?$filter=ConfId eq " + sConfId +
+        "?$filter=ConfId eq " +
+        sConfId +
         "&$orderby=CreatedAt desc" +
         "&$top=1" +
         "&$select=ReqId,ConfId,ModuleId" +
-        "&sap-client=" + _getSapClient();
+        "&sap-client=" +
+        _getSapClient();
 
       console.log("Query URL:", sUrl);
 
@@ -118,7 +120,8 @@ sap.ui.define(
             "/sap/opu/odata4/sap/zui_conf_req/srvd/sap/zsd_conf_req/0001/" +
             "ZC_CONF_REQ_H/" +
             "com.sap.gateway.srvd.zsd_conf_req.v0001.createRequest" +
-            "?sap-client=" + _getSapClient();
+            "?sap-client=" +
+            _getSapClient();
 
           const oBody = {
             ConfId: sConfId,
@@ -150,7 +153,7 @@ sap.ui.define(
             const oErr = await oResponse.json().catch(() => ({}));
             MessageBox.error(
               oErr?.error?.message ||
-                "createRequest failed: " + oResponse.status
+                "createRequest failed: " + oResponse.status,
             );
             return;
           }
@@ -163,9 +166,7 @@ sap.ui.define(
           BusyIndicator.hide();
 
           if (!oNewReq || !oNewReq.ReqId) {
-            MessageBox.error(
-              "Request created but could not retrieve ReqId"
-            );
+            MessageBox.error("Request created but could not retrieve ReqId");
             return;
           }
 
@@ -174,15 +175,15 @@ sap.ui.define(
 
           console.log("ReqId:", sReqId, "TargetApp:", sTargetApp);
 
-          // 6. Navigate
-          MessageBox.success(
-            "Request created successfully!\nReqId: " + sReqId,
-            {
-              onClose: function () {
-                // Optional: navigate to request app
-                // window.location.href = "...";
-              },
-            }
+          // 6. Navigate — không MessageBox, mở tab mới ngay
+          BusyIndicator.hide();
+
+          window.open(
+            "http://localhost:8082/test/flp.html?sap-ui-xx-viewCache=false" +
+              "#app-preview&/ZC_CONF_REQ_H(ReqId=" +
+              sReqId +
+              ",IsActiveEntity=true)",
+            "_blank",
           );
         } catch (e) {
           BusyIndicator.hide();
@@ -191,5 +192,5 @@ sap.ui.define(
         }
       },
     };
-  }
+  },
 );
