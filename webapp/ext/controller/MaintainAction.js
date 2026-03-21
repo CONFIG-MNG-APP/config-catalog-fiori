@@ -3,20 +3,24 @@ sap.ui.define(
   function (MessageBox, BusyIndicator) {
     "use strict";
 
+    // P3-12: Đọc sap-client từ runtime, fallback rỗng (không hardcode 324)
     function _getSapClient() {
-      return (
-        new URLSearchParams(window.location.search).get("sap-client") || "324"
-      );
+      return new URLSearchParams(window.location.search).get("sap-client") || "";
     }
+
+    function _appendClient(sUrl, bFirst) {
+      const sClient = _getSapClient();
+      if (!sClient) return sUrl;
+      return sUrl + (bFirst ? "?" : "&") + "sap-client=" + sClient;
+    }
+
+    const BASE_SVC =
+      "/sap/opu/odata4/sap/zui_conf_req/srvd/sap/zsd_conf_req/0001/";
 
     function _getReqServiceUrl() {
-      return (
-        "/sap/opu/odata4/sap/zui_conf_req/srvd/sap/zsd_conf_req/0001/?sap-client=" +
-        _getSapClient()
-      );
+      return _appendClient(BASE_SVC, true);
     }
 
-    // Map TargetCds -> TargetApp (same logic as backend)
     function _mapTargetApp(sTargetCds) {
       const oMap = {
         ZI_MM_ROUTE_CONF: "MM_ROUTE_REQ",
@@ -27,54 +31,86 @@ sap.ui.define(
       return oMap[sTargetCds] || "CONF_REQ";
     }
 
+    // P0-3: fetch với AbortController timeout
+    async function _fetchWithTimeout(sUrl, oOptions, iTimeoutMs) {
+      const oCtrl = new AbortController();
+      const iTimer = setTimeout(() => oCtrl.abort(), iTimeoutMs || 15000);
+      try {
+        return await fetch(sUrl, { ...oOptions, signal: oCtrl.signal });
+      } finally {
+        clearTimeout(iTimer);
+      }
+    }
+
     async function _fetchCsrfToken(sServiceUrl) {
-      const oResp = await fetch(sServiceUrl, {
-        method: "GET",
-        headers: {
-          "X-CSRF-Token": "Fetch",
-          "X-Requested-With": "XMLHttpRequest",
+      const oResp = await _fetchWithTimeout(
+        sServiceUrl,
+        {
+          method: "GET",
+          headers: {
+            "X-CSRF-Token": "Fetch",
+            "X-Requested-With": "XMLHttpRequest",
+          },
+          credentials: "include",
         },
-        credentials: "include",
-      });
+        10000
+      );
       if (!oResp.ok) return null;
       return oResp.headers.get("X-CSRF-Token") || null;
     }
 
-    // Query newest request by ConfId after action
-    async function _queryNewReqId(sConfId, sCsrfToken) {
-      const sUrl =
-        "/sap/opu/odata4/sap/zui_conf_req/srvd/sap/zsd_conf_req/0001/" +
-        "ZC_CONF_REQ_H" +
-        "?$filter=ConfId eq " + sConfId +
-        "&$orderby=CreatedAt desc" +
-        "&$top=1" +
-        "&$select=ReqId,ConfId,ModuleId" +
-        "&sap-client=" + _getSapClient();
+    // P0-6: bỏ tham số sCsrfToken không dùng
+    // P0-1: encodeURIComponent cho sConfId trong $filter
+    // P0-5: thử lại tối đa 3 lần khi query thất bại
+    async function _queryNewReqId(sConfId) {
+      const sUrl = _appendClient(
+        BASE_SVC +
+          "ZC_CONF_REQ_H" +
+          "?$filter=ConfId eq " + encodeURIComponent(sConfId) +
+          "&$orderby=CreatedAt desc" +
+          "&$top=1" +
+          "&$select=ReqId,ConfId,ModuleId"
+      );
 
-      console.log("Query URL:", sUrl);
-
-      const oResp = await fetch(sUrl, {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-          "X-Requested-With": "XMLHttpRequest",
-        },
-        credentials: "include",
-      });
-
-      if (!oResp.ok) return null;
-
-      const oData = await oResp.json();
-      console.log("Query result:", JSON.stringify(oData));
-
-      const aResults = oData?.value || [];
-      return aResults.length > 0 ? aResults[0] : null;
+      const MAX_RETRIES = 3;
+      for (let i = 0; i < MAX_RETRIES; i++) {
+        try {
+          const oResp = await _fetchWithTimeout(
+            sUrl,
+            {
+              method: "GET",
+              headers: {
+                Accept: "application/json",
+                "X-Requested-With": "XMLHttpRequest",
+              },
+              credentials: "include",
+            },
+            10000
+          );
+          if (oResp.ok) {
+            const oData = await oResp.json();
+            const aResults = oData?.value || [];
+            if (aResults.length > 0) return aResults[0];
+          }
+        } catch (e) {
+          if (i === MAX_RETRIES - 1) throw e;
+        }
+        await new Promise((res) => setTimeout(res, 500));
+      }
+      return null;
     }
+
+    // P0-2: chống bấm trùng
+    let _bPending = false;
 
     return {
       onMaintainPress: async function (oContext) {
+        // P0-2: nếu đang xử lý thì bỏ qua
+        if (_bPending) return;
+        _bPending = true;
+
         try {
-          // 1. Get binding context
+          // 1. Binding context
           let oBindingContext = null;
           if (oContext && typeof oContext.requestObject === "function") {
             oBindingContext = oContext;
@@ -87,14 +123,12 @@ sap.ui.define(
             return;
           }
 
-          // 2. Read catalog data
+          // 2. Đọc catalog data
           const oData = await oBindingContext.requestObject();
-          const sConfId = oData?.ConfId || "";
-          const sModuleId = oData?.ModuleId || "";
-          const sConfName = oData?.ConfName || "";
+          const sConfId    = oData?.ConfId    || "";
+          const sModuleId  = oData?.ModuleId  || "";
+          const sConfName  = oData?.ConfName  || "";
           const sTargetCds = oData?.TargetCds || "";
-
-          console.log("ConfId:", sConfId);
 
           if (!sConfId) {
             MessageBox.error("ConfId is missing");
@@ -103,91 +137,109 @@ sap.ui.define(
 
           BusyIndicator.show(0);
 
-          // 3. CSRF token
-          const sServiceUrl = _getReqServiceUrl();
-          const sCsrfToken = await _fetchCsrfToken(sServiceUrl);
-
+          // 3. CSRF token (với timeout)
+          const sCsrfToken = await _fetchCsrfToken(_getReqServiceUrl());
           if (!sCsrfToken) {
             BusyIndicator.hide();
             MessageBox.error("Cannot fetch CSRF token");
             return;
           }
 
-          // 4. Call createRequest action
-          const sActionUrl =
-            "/sap/opu/odata4/sap/zui_conf_req/srvd/sap/zsd_conf_req/0001/" +
-            "ZC_CONF_REQ_H/" +
-            "com.sap.gateway.srvd.zsd_conf_req.v0001.createRequest" +
-            "?sap-client=" + _getSapClient();
+          // 4. Call createRequest (với timeout)
+          const sActionUrl = _appendClient(
+            BASE_SVC +
+              "ZC_CONF_REQ_H/" +
+              "com.sap.gateway.srvd.zsd_conf_req.v0001.createRequest"
+          );
 
           const oBody = {
-            ConfId: sConfId,
-            ModuleId: sModuleId,
-            ConfName: sConfName,
-            TargetCds: sTargetCds,
-            ActionType: "CREATE",
+            ConfId:      sConfId,
+            ModuleId:    sModuleId,
+            ConfName:    sConfName,
+            TargetCds:   sTargetCds,
+            ActionType:  "CREATE",
             TargetEnvId: "DEV",
-            Reason: "",
-            Notes: "",
+            Reason:      "",
+            Notes:       "",
           };
 
-          console.log("=== POST body ===", JSON.stringify(oBody));
-
-          const oResponse = await fetch(sActionUrl, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-CSRF-Token": sCsrfToken,
-              "X-Requested-With": "XMLHttpRequest",
-              Accept: "application/json",
-            },
-            credentials: "include",
-            body: JSON.stringify(oBody),
-          });
-
-          if (!oResponse.ok) {
+          let oResponse;
+          try {
+            oResponse = await _fetchWithTimeout(
+              sActionUrl,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-CSRF-Token": sCsrfToken,
+                  "X-Requested-With": "XMLHttpRequest",
+                  Accept: "application/json",
+                },
+                credentials: "include",
+                body: JSON.stringify(oBody),
+              },
+              20000
+            );
+          } catch (eFetch) {
             BusyIndicator.hide();
-            const oErr = await oResponse.json().catch(() => ({}));
             MessageBox.error(
-              oErr?.error?.message ||
-                "createRequest failed: " + oResponse.status
+              eFetch.name === "AbortError"
+                ? "Request timed out. Please try again."
+                : "Network error: " + eFetch.message
             );
             return;
           }
 
-          console.log("createRequest OK, status:", oResponse.status);
+          if (!oResponse.ok) {
+            BusyIndicator.hide();
+            // P0-4: parse lỗi an toàn — không crash nếu body không phải JSON
+            const sErrText = await oResponse.text().catch(() => "");
+            let sErrMsg = "createRequest failed: " + oResponse.status;
+            try {
+              const oErr = JSON.parse(sErrText);
+              if (oErr?.error?.message) sErrMsg = oErr.error.message;
+            } catch (_) { /* không phải JSON, dùng fallback */ }
+            MessageBox.error(sErrMsg);
+            return;
+          }
 
-          // 5. Query for the newly created request
-          const oNewReq = await _queryNewReqId(sConfId, sCsrfToken);
-
+          // 5. Query ReqId mới (có thử lại)
+          const oNewReq = await _queryNewReqId(sConfId);
           BusyIndicator.hide();
 
-          if (!oNewReq || !oNewReq.ReqId) {
-            MessageBox.error(
-              "Request created but could not retrieve ReqId"
-            );
+          if (!oNewReq?.ReqId) {
+            MessageBox.error("Request created but could not retrieve ReqId");
             return;
           }
 
           const sReqId = oNewReq.ReqId;
           const sTargetApp = _mapTargetApp(sTargetCds);
 
-          console.log("ReqId:", sReqId, "TargetApp:", sTargetApp);
+          // 6. Navigate sang conf-header-item kèm params
+          const sReqUrl =
+            "http://localhost:8082/test/flp.html" +
+            "?sap-ui-xx-viewCache=false" +
+            "&ConfId="    + encodeURIComponent(sConfId) +
+            "&ConfName="  + encodeURIComponent(sConfName) +
+            "&ModuleId="  + encodeURIComponent(sModuleId) +
+            "&TargetCds=" + encodeURIComponent(sTargetCds) +
+            "&TargetApp=" + encodeURIComponent(sTargetApp) +
+            "#app-preview&/ZC_CONF_REQ_H(ReqId=" + sReqId + ",IsActiveEntity=true)";
 
-          // 6. Navigate
-          MessageBox.success(
-            "Request created successfully!\nReqId: " + sReqId,
-            {
-              onClose: function () {
-                // Optional: navigate to request app
-                // window.location.href = "...";
-              },
-            }
-          );
+          const oLink = document.createElement("a");
+          oLink.href = sReqUrl;
+          oLink.target = "_blank";
+          oLink.rel = "noopener noreferrer";
+          document.body.appendChild(oLink);
+          oLink.click();
+          document.body.removeChild(oLink);
+
         } catch (e) {
           BusyIndicator.hide();
-          console.error("onMaintainPress error:", e);
           MessageBox.error(e?.message || "createRequest failed");
+        } finally {
+          // P0-2: luôn reset flag dù thành công hay lỗi
+          _bPending = false;
         }
       },
     };
