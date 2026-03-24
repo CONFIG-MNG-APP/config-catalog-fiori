@@ -108,6 +108,7 @@
         "dataSource": "reqService",
         "preload": true,
         "settings": {
+          "synchronizationMode": "None",
           "operationMode": "Server",
           "autoExpandSelect": true
         }

@@ -13,6 +13,221 @@
     </edmx:Reference>
     <edmx:DataServices>
         <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="local">
+
+            <!-- ══════════════════════════════════════════════════════════
+                 ConfigCatalogType  —  List Report  +  Object Page
+                 ══════════════════════════════════════════════════════════ -->
+            <Annotations Target="SAP__self.ConfigCatalogType">
+
+                <!-- Object Page: header title + subtitle -->
+                <Annotation Term="UI.HeaderInfo">
+                    <Record Type="UI.HeaderInfoType">
+                        <PropertyValue Property="TypeName"       String="Configuration"/>
+                        <PropertyValue Property="TypeNamePlural" String="Configurations"/>
+                        <PropertyValue Property="Title">
+                            <Record Type="UI.DataField">
+                                <PropertyValue Property="Value" Path="ConfName"/>
+                            </Record>
+                        </PropertyValue>
+                        <PropertyValue Property="Description">
+                            <Record Type="UI.DataField">
+                                <PropertyValue Property="Value" Path="ModuleId"/>
+                            </Record>
+                        </PropertyValue>
+                    </Record>
+                </Annotation>
+
+                <!-- DataPoint for IsActive → coloured status badge -->
+                <Annotation Term="UI.DataPoint" Qualifier="IsActiveStatus">
+                    <Record Type="UI.DataPointType">
+                        <PropertyValue Property="Value" Path="IsActive"/>
+                        <PropertyValue Property="Title" String="Status"/>
+                        <PropertyValue Property="Criticality">
+                            <If>
+                                <Path>IsActive</Path>
+                                <Int>3</Int>
+                                <Int>0</Int>
+                            </If>
+                        </PropertyValue>
+                        <PropertyValue Property="CriticalityRepresentation"
+                            EnumMember="UI.CriticalityRepresentationType/WithIcon"/>
+                    </Record>
+                </Annotation>
+
+                <!-- List Report columns -->
+                <Annotation Term="UI.LineItem">
+                    <Collection>
+                        <Record Type="UI.DataField">
+                            <PropertyValue Property="Label" String="Module"/>
+                            <PropertyValue Property="Value" Path="ModuleId"/>
+                        </Record>
+                        <Record Type="UI.DataField">
+                            <PropertyValue Property="Label" String="Configuration Name"/>
+                            <PropertyValue Property="Value" Path="ConfName"/>
+                        </Record>
+                        <Record Type="UI.DataField">
+                            <PropertyValue Property="Label" String="Type"/>
+                            <PropertyValue Property="Value" Path="ConfType"/>
+                        </Record>
+                        <Record Type="UI.DataField">
+                            <PropertyValue Property="Label" String="Description"/>
+                            <PropertyValue Property="Value" Path="Description"/>
+                        </Record>
+                        <Record Type="UI.DataField">
+                            <PropertyValue Property="Label" String="Target CDS"/>
+                            <PropertyValue Property="Value" Path="TargetCds"/>
+                        </Record>
+                        <Record Type="UI.DataFieldForAnnotation">
+                            <PropertyValue Property="Label"  String="Status"/>
+                            <PropertyValue Property="Target" AnnotationPath="@UI.DataPoint#IsActiveStatus"/>
+                        </Record>
+                        <Record Type="UI.DataField">
+                            <PropertyValue Property="Label" String="Created"/>
+                            <PropertyValue Property="Value" Path="CreatedAt"/>
+                        </Record>
+                    </Collection>
+                </Annotation>
+
+                <!-- Filter Bar -->
+                <Annotation Term="UI.SelectionFields">
+                    <Collection>
+                        <PropertyPath>ModuleId</PropertyPath>
+                        <PropertyPath>ConfType</PropertyPath>
+                        <PropertyPath>IsActive</PropertyPath>
+                    </Collection>
+                </Annotation>
+
+                <!-- Object Page field group: main details -->
+                <Annotation Term="UI.FieldGroup" Qualifier="GeneralInfo">
+                    <Record Type="UI.FieldGroupType">
+                        <PropertyValue Property="Label" String="General Information"/>
+                        <PropertyValue Property="Data">
+                            <Collection>
+                                <Record Type="UI.DataField">
+                                    <PropertyValue Property="Label" String="Module"/>
+                                    <PropertyValue Property="Value" Path="ModuleId"/>
+                                </Record>
+                                <Record Type="UI.DataField">
+                                    <PropertyValue Property="Label" String="Configuration Name"/>
+                                    <PropertyValue Property="Value" Path="ConfName"/>
+                                </Record>
+                                <Record Type="UI.DataField">
+                                    <PropertyValue Property="Label" String="Type"/>
+                                    <PropertyValue Property="Value" Path="ConfType"/>
+                                </Record>
+                                <Record Type="UI.DataField">
+                                    <PropertyValue Property="Label" String="Target CDS View"/>
+                                    <PropertyValue Property="Value" Path="TargetCds"/>
+                                </Record>
+                                <Record Type="UI.DataField">
+                                    <PropertyValue Property="Label" String="Description"/>
+                                    <PropertyValue Property="Value" Path="Description"/>
+                                </Record>
+                                <Record Type="UI.DataFieldForAnnotation">
+                                    <PropertyValue Property="Label"  String="Status"/>
+                                    <PropertyValue Property="Target" AnnotationPath="@UI.DataPoint#IsActiveStatus"/>
+                                </Record>
+                            </Collection>
+                        </PropertyValue>
+                    </Record>
+                </Annotation>
+
+                <!-- Object Page field group: admin / audit data -->
+                <Annotation Term="UI.FieldGroup" Qualifier="AdminInfo">
+                    <Record Type="UI.FieldGroupType">
+                        <PropertyValue Property="Label" String="Administrative Data"/>
+                        <PropertyValue Property="Data">
+                            <Collection>
+                                <Record Type="UI.DataField">
+                                    <PropertyValue Property="Label" String="Configuration ID"/>
+                                    <PropertyValue Property="Value" Path="ConfId"/>
+                                </Record>
+                                <Record Type="UI.DataField">
+                                    <PropertyValue Property="Label" String="Created By"/>
+                                    <PropertyValue Property="Value" Path="CreatedBy"/>
+                                </Record>
+                                <Record Type="UI.DataField">
+                                    <PropertyValue Property="Label" String="Created At"/>
+                                    <PropertyValue Property="Value" Path="CreatedAt"/>
+                                </Record>
+                                <Record Type="UI.DataField">
+                                    <PropertyValue Property="Label" String="Changed By"/>
+                                    <PropertyValue Property="Value" Path="ChangedBy"/>
+                                </Record>
+                                <Record Type="UI.DataField">
+                                    <PropertyValue Property="Label" String="Changed At"/>
+                                    <PropertyValue Property="Value" Path="ChangedAt"/>
+                                </Record>
+                            </Collection>
+                        </PropertyValue>
+                    </Record>
+                </Annotation>
+
+                <!-- Object Page facets / tabs -->
+                <Annotation Term="UI.Facets">
+                    <Collection>
+                        <!-- Tab 1: Configuration Details (two side-by-side sections) -->
+                        <Record Type="UI.CollectionFacet">
+                            <PropertyValue Property="Label" String="Configuration Details"/>
+                            <PropertyValue Property="ID"    String="ConfigDetails"/>
+                            <PropertyValue Property="Facets">
+                                <Collection>
+                                    <Record Type="UI.ReferenceFacet">
+                                        <PropertyValue Property="Label"  String="General Information"/>
+                                        <PropertyValue Property="ID"     String="GeneralInfo"/>
+                                        <PropertyValue Property="Target" AnnotationPath="@UI.FieldGroup#GeneralInfo"/>
+                                    </Record>
+                                    <Record Type="UI.ReferenceFacet">
+                                        <PropertyValue Property="Label"  String="Administrative Data"/>
+                                        <PropertyValue Property="ID"     String="AdminInfo"/>
+                                        <PropertyValue Property="Target" AnnotationPath="@UI.FieldGroup#AdminInfo"/>
+                                    </Record>
+                                </Collection>
+                            </PropertyValue>
+                        </Record>
+                        <!-- Tab 2: Field Definitions sub-table -->
+                        <Record Type="UI.ReferenceFacet">
+                            <PropertyValue Property="Label"  String="Field Definitions"/>
+                            <PropertyValue Property="ID"     String="FieldDefs"/>
+                            <PropertyValue Property="Target" AnnotationPath="_FieldDef/@UI.LineItem"/>
+                        </Record>
+                    </Collection>
+                </Annotation>
+
+            </Annotations>
+
+            <!-- ══════════════════════════════════════════════════════════
+                 ConfigFieldDefType  —  Field Definitions sub-table
+                 ══════════════════════════════════════════════════════════ -->
+            <Annotations Target="SAP__self.ConfigFieldDefType">
+
+                <Annotation Term="UI.LineItem">
+                    <Collection>
+                        <Record Type="UI.DataField">
+                            <PropertyValue Property="Label" String="Field Name"/>
+                            <PropertyValue Property="Value" Path="FieldName"/>
+                        </Record>
+                        <Record Type="UI.DataField">
+                            <PropertyValue Property="Label" String="Field Label"/>
+                            <PropertyValue Property="Value" Path="FieldLabel"/>
+                        </Record>
+                        <Record Type="UI.DataField">
+                            <PropertyValue Property="Label" String="Data Type"/>
+                            <PropertyValue Property="Value" Path="DataType"/>
+                        </Record>
+                        <Record Type="UI.DataField">
+                            <PropertyValue Property="Label" String="Required"/>
+                            <PropertyValue Property="Value" Path="IsRequired"/>
+                        </Record>
+                        <Record Type="UI.DataField">
+                            <PropertyValue Property="Label" String="Value Help"/>
+                            <PropertyValue Property="Value" Path="ValueHelpType"/>
+                        </Record>
+                    </Collection>
+                </Annotation>
+
+            </Annotations>
+
         </Schema>
     </edmx:DataServices>
 </edmx:Edmx>
