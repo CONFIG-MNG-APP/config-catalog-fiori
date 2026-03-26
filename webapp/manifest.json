@@ -177,6 +177,18 @@
               "content": {
                 "header": {
                   "actions": {
+                    "ViewConfig": {
+                      "text": "View Current Config",
+                      "press": "zgsp26.conf.mng.confmngcatalog.ext.controller.MaintainAction.onViewConfigPress",
+                      "visible": true,
+                      "enabled": true
+                    },
+                    "ViewRequests": {
+                      "text": "View Requests",
+                      "press": "zgsp26.conf.mng.confmngcatalog.ext.controller.MaintainAction.onViewRequestsPress",
+                      "visible": true,
+                      "enabled": true
+                    },
                     "Maintain": {
                       "text": "Maintain via Request",
                       "press": "zgsp26.conf.mng.confmngcatalog.ext.controller.MaintainAction.onMaintainPress",

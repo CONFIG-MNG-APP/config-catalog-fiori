@@ -7,8 +7,30 @@ sap.ui.define(
       return new URLSearchParams(window.location.search).get("sap-client") || "324";
     }
 
+    // Nav mode: "local" → localhost:8081, "deploy" → BSP path on SAP server
+    // Auto-detect by hostname; override via: localStorage.setItem("conf-mng-nav-mode", "local"/"deploy")
+    function _getRequestAppUrl() {
+      var sMode = localStorage.getItem("conf-mng-nav-mode") ||
+        (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+          ? "local" : "deploy");
+      if (sMode === "local") {
+        return "http://localhost:8081/index.html";
+      }
+      return window.location.origin + "/sap/bc/ui5_ui5/sap/zconf_req_ui/index.html";
+    }
+
     function _getReqServiceUrl() {
       return "/sap/opu/odata4/sap/zui_conf_req/srvd/sap/zsd_conf_req/0001/?sap-client=" + _getSapClient();
+    }
+
+    function _getMmRoutesAppUrl() {
+      var sMode = localStorage.getItem("conf-mng-nav-mode") ||
+        (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+          ? "local" : "deploy");
+      if (sMode === "local") {
+        return "http://localhost:8082/index.html";
+      }
+      return window.location.origin + "/sap/bc/ui5_ui5/sap/zconfmmroute/index.html";
     }
 
     async function _fetchCsrfToken(sServiceUrl) {
@@ -43,6 +65,91 @@ sap.ui.define(
     }
 
     return {
+      /**
+       * Navigate to the Config app (e.g. MM Routes) in VIEW mode
+       * to see current master data without creating a request.
+       */
+      onViewConfigPress: async function (oContext) {
+        try {
+          let oBindingContext = null;
+          if (oContext && typeof oContext.requestObject === "function") {
+            oBindingContext = oContext;
+          } else if (Array.isArray(oContext) && oContext[0]) {
+            oBindingContext = oContext[0];
+          }
+          if (!oBindingContext) { MessageBox.error("No binding context found"); return; }
+
+          const oData      = await oBindingContext.requestObject();
+          const sConfId    = oData?.ConfId    || "";
+          const sModuleId  = oData?.ModuleId  || "";
+          const sConfName  = oData?.ConfName  || "";
+          const sTargetCds = oData?.TargetCds || "";
+
+          if (!sConfId) { MessageBox.error("ConfId is missing"); return; }
+
+          window.open(
+            _getMmRoutesAppUrl() +
+              "?sap-client=" + _getSapClient() +
+              "&ConfId="    + encodeURIComponent(sConfId) +
+              "&ConfName="  + encodeURIComponent(sConfName) +
+              "&ModuleId="  + encodeURIComponent(sModuleId) +
+              "&TargetCds=" + encodeURIComponent(sTargetCds) +
+              "&EnvId=DEV"  +
+              "&Mode=VIEW",
+            "_self",
+          );
+        } catch (e) {
+          console.error("onViewConfigPress error:", e);
+          MessageBox.error(e?.message || "Navigation failed");
+        }
+      },
+
+      /**
+       * Navigate to the Request app to VIEW existing requests for this catalog,
+       * without creating a new request.
+       */
+      onViewRequestsPress: async function (oContext) {
+        try {
+          let oBindingContext = null;
+          if (oContext && typeof oContext.requestObject === "function") {
+            oBindingContext = oContext;
+          } else if (Array.isArray(oContext) && oContext[0]) {
+            oBindingContext = oContext[0];
+          }
+          if (!oBindingContext) {
+            MessageBox.error("No binding context found");
+            return;
+          }
+
+          const oData      = await oBindingContext.requestObject();
+          const sConfId    = oData?.ConfId    || "";
+          const sModuleId  = oData?.ModuleId  || "";
+          const sConfName  = oData?.ConfName  || "";
+          const sTargetCds = oData?.TargetCds || "";
+
+          if (!sConfId) {
+            MessageBox.error("ConfId is missing");
+            return;
+          }
+
+          const sClient  = _getSapClient();
+          const sAppPath = _getRequestAppUrl();
+          window.open(
+            sAppPath +
+              "?sap-client=" + sClient +
+              "&ConfId="    + encodeURIComponent(sConfId) +
+              "&ConfName="  + encodeURIComponent(sConfName) +
+              "&ModuleId="  + encodeURIComponent(sModuleId) +
+              "&TargetCds=" + encodeURIComponent(sTargetCds) +
+              "&EnvId=DEV",
+            "_self",
+          );
+        } catch (e) {
+          console.error("onViewRequestsPress error:", e);
+          MessageBox.error(e?.message || "Navigation failed");
+        }
+      },
+
       onMaintainPress: async function (oContext) {
         try {
           // 1. Get binding context
@@ -123,18 +230,17 @@ sap.ui.define(
             return;
           }
 
-          // 6. Navigate to CatalogLanding — user will edit title + reason in MM Routes
-          const sClient = _getSapClient();
+          // 6. Navigate to Request App — CatalogLanding page
+          const sClient  = _getSapClient();
+          const sAppPath = _getRequestAppUrl();
           window.open(
-            "http://localhost:8082/test/flp.html" +
-              "?sap-ui-xx-viewCache=false" +
-              "&sap-client=" + sClient +
+            sAppPath +
+              "?sap-client=" + sClient +
               "&ConfId="    + encodeURIComponent(sConfId) +
               "&ConfName="  + encodeURIComponent(sConfName) +
               "&ModuleId="  + encodeURIComponent(sModuleId) +
               "&TargetCds=" + encodeURIComponent(sTargetCds) +
-              "&EnvId=DEV" +
-              "#app-preview",
+              "&EnvId=DEV",
             "_self",
           );
         } catch (e) {
