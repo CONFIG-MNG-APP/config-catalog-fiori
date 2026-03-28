@@ -23,14 +23,20 @@ sap.ui.define(
       return "/sap/opu/odata4/sap/zui_conf_req/srvd/sap/zsd_conf_req/0001/?sap-client=" + _getSapClient();
     }
 
-    function _getMmRoutesAppUrl() {
+    var APP_PATH_MAP = {
+      ZI_MM_ROUTE_CONF: { local: "http://localhost:8082/index.html", deploy: "/sap/bc/ui5_ui5/sap/zconfmmroute/index.html" },
+      ZI_SD_PRICE_CONF: { local: "http://localhost:8083/index.html", deploy: "/sap/bc/ui5_ui5/sap/zconfsdprice/index.html" },
+      ZI_FI_LIMIT_CONF: { local: "http://localhost:8084/index.html", deploy: "/sap/bc/ui5_ui5/sap/zconffilimit/index.html" },
+      ZI_MM_SAFE_STOCK: { local: "http://localhost:8085/index.html", deploy: "/sap/bc/ui5_ui5/sap/zconfmmstock/index.html" },
+    };
+
+    function _getConfigAppUrl(sTargetCds) {
       var sMode = localStorage.getItem("conf-mng-nav-mode") ||
         (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
           ? "local" : "deploy");
-      if (sMode === "local") {
-        return "http://localhost:8082/index.html";
-      }
-      return window.location.origin + "/sap/bc/ui5_ui5/sap/zconfmmroute/index.html";
+      var oEntry = APP_PATH_MAP[sTargetCds] || APP_PATH_MAP["ZI_MM_ROUTE_CONF"];
+      var sPath  = oEntry[sMode] || oEntry.deploy;
+      return sMode === "deploy" ? window.location.origin + sPath : sPath;
     }
 
     async function _fetchCsrfToken(sServiceUrl) {
@@ -88,7 +94,7 @@ sap.ui.define(
           if (!sConfId) { MessageBox.error("ConfId is missing"); return; }
 
           window.open(
-            _getMmRoutesAppUrl() +
+            _getConfigAppUrl(sTargetCds) +
               "?sap-client=" + _getSapClient() +
               "&ConfId="    + encodeURIComponent(sConfId) +
               "&ConfName="  + encodeURIComponent(sConfName) +
@@ -141,7 +147,8 @@ sap.ui.define(
               "&ConfName="  + encodeURIComponent(sConfName) +
               "&ModuleId="  + encodeURIComponent(sModuleId) +
               "&TargetCds=" + encodeURIComponent(sTargetCds) +
-              "&EnvId=DEV",
+              "&EnvId=DEV"  +
+              "&Mode=VIEW_LIST",
             "_self",
           );
         } catch (e) {
