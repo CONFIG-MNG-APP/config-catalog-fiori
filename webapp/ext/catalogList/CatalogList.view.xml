@@ -22,13 +22,19 @@
         </f:heading>
         <f:actions>
           <!-- Notification Bell -->
-          <Button
-            id="notifBellBtn"
-            icon="sap-icon://bell"
-            type="Transparent"
-            tooltip="Notifications"
-            press=".onNotifBellPress"
-            class="confNotifBell" />
+          <HBox id="notifBellWrapper" alignItems="Center" class="confNotifBellWrapper">
+            <Button
+              id="notifBellBtn"
+              icon="sap-icon://bell"
+              type="Transparent"
+              tooltip="Notifications"
+              press=".onNotifBellPress" />
+            <Text
+              id="notifBadge"
+              text="{= ${notif>/unreadCount} > 99 ? '99+' : String(${notif>/unreadCount})}"
+              visible="{= ${notif>/unreadCount} > 0}"
+              class="confNotifBadge" />
+          </HBox>
           <Button icon="sap-icon://refresh" tooltip="Refresh" type="Transparent" press=".onRefresh" />
         </f:actions>
         <f:snappedContent>

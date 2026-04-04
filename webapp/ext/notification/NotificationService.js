@@ -225,8 +225,9 @@ sap.ui.define(
 
       markAllRead: function () {
         if (!_oModel) return;
-        var aNotifs = _oModel.getProperty("/notifications") || [];
-        aNotifs.forEach(function (n) { n.read = true; });
+        var aNotifs = (_oModel.getProperty("/notifications") || []).map(function (n) {
+          return n.read ? n : Object.assign({}, n, { read: true });
+        });
         _oModel.setProperty("/notifications", aNotifs);
         _oModel.setProperty("/unreadCount", 0);
         _saveState();
@@ -234,15 +235,16 @@ sap.ui.define(
 
       markRead: function (sId) {
         if (!_oModel) return;
-        var aNotifs = _oModel.getProperty("/notifications") || [];
-        var oN = aNotifs.find(function (n) { return n.id === sId; });
-        if (oN && !oN.read) {
-          oN.read = true;
-          _oModel.setProperty("/notifications", aNotifs);
-          _oModel.setProperty("/unreadCount",
-            aNotifs.filter(function (n) { return !n.read; }).length);
-          _saveState();
-        }
+        var aOld = _oModel.getProperty("/notifications") || [];
+        var bFound = aOld.some(function (n) { return n.id === sId && !n.read; });
+        if (!bFound) return;
+        var aNotifs = aOld.map(function (n) {
+          return (n.id === sId && !n.read) ? Object.assign({}, n, { read: true }) : n;
+        });
+        _oModel.setProperty("/notifications", aNotifs);
+        _oModel.setProperty("/unreadCount",
+          aNotifs.filter(function (n) { return !n.read; }).length);
+        _saveState();
       },
 
       clearAll: function () {

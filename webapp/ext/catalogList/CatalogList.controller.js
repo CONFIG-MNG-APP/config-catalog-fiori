@@ -61,40 +61,11 @@ sap.ui.define(
         var oNotifModel = NotificationService.init(_getSapClient());
         this.getView().setModel(oNotifModel, "notif");
 
-        oNotifModel.attachPropertyChange(function () {
-          this._syncBellBadge();
-        }, this);
-        this._iBadgeTimer = setInterval(function () {
-          this._syncBellBadge();
-        }.bind(this), 2000);
-
         this._loadCatalogs();
       },
 
       onExit: function () {
-        if (this._iBadgeTimer) { clearInterval(this._iBadgeTimer); }
         NotificationService.destroy();
-      },
-
-      // ── Bell badge ───────────────────────────────────────────────────
-      _syncBellBadge: function () {
-        var oNotifModel = this.getView().getModel("notif");
-        if (!oNotifModel) return;
-        var iCount = oNotifModel.getProperty("/unreadCount") || 0;
-        var oBell  = this.byId("notifBellBtn");
-        if (!oBell) return;
-        var oDom = oBell.getDomRef();
-        if (!oDom) {
-          setTimeout(function () {
-            var oDom2 = oBell.getDomRef();
-            if (!oDom2) return;
-            oDom2.setAttribute("data-notif-count", iCount > 0 ? (iCount > 99 ? "99+" : String(iCount)) : "");
-            oDom2.classList.toggle("confNotifBellActive", iCount > 0);
-          }, 300);
-          return;
-        }
-        oDom.setAttribute("data-notif-count", iCount > 0 ? (iCount > 99 ? "99+" : String(iCount)) : "");
-        oDom.classList.toggle("confNotifBellActive", iCount > 0);
       },
 
       // ── Bell press → open popover ────────────────────────────────────
@@ -133,12 +104,10 @@ sap.ui.define(
 
       onMarkAllRead: function () {
         NotificationService.markAllRead();
-        this._syncBellBadge();
       },
 
       onClearAllNotif: function () {
         NotificationService.clearAll();
-        this._syncBellBadge();
       },
 
       onNotifItemPress: function (oEvent) {
@@ -148,7 +117,6 @@ sap.ui.define(
         var sReqId = oCtx.getProperty("ReqId");
         var sEnvId = oCtx.getProperty("EnvId") || "DEV";
         NotificationService.markRead(sId);
-        this._syncBellBadge();
         if (this._oNotifPopover) { this._oNotifPopover.close(); }
         if (sReqId) {
           // Navigate to request app to view the request detail
