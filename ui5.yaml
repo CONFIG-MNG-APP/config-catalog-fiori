@@ -15,6 +15,7 @@ server:
             - /resources
             - /test-resources
           url: https://ui5.sap.com
+          version: 1.120.23
         backend:
           - path: /sap
             url: https://s40lp1.ucc.cit.tum.de
