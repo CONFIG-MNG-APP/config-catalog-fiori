@@ -39,8 +39,10 @@ sap.ui.define(
       ACTIVE:      "Active",
     };
 
-    // Statuses that are worth notifying about (not DRAFT — that's the default start)
-    var NOTIFY_STATUSES = ["SUBMITTED", "APPROVED", "REJECTED", "ROLLED_BACK", "ACTIVE"];
+    // Statuses that are worth notifying about.
+    // DRAFT → excluded (default start state, no notification needed).
+    // SUBMITTED → excluded (user's own submit action, no notification needed).
+    var NOTIFY_STATUSES = ["APPROVED", "REJECTED", "ROLLED_BACK", "ACTIVE"];
 
     // ── private state ────────────────────────────────────────────────────
     var _oModel      = null;
@@ -169,13 +171,17 @@ sap.ui.define(
               return;
             }
 
+            // Known request — check for status change.
+            // Skip DRAFT → SUBMITTED: that is the user's own submit action.
             if (sPrev !== oReq.Status) {
-              var oNew = _buildNotif(oReq, sPrev);
-              if (!aNotifs.some(function (n) { return n.id === oNew.id; })) {
-                aNotifs.unshift(oNew);
-              }
               _mSeen[oReq.ReqId] = oReq.Status;
               bChanged = true;
+              if (!(sPrev === "DRAFT" && oReq.Status === "SUBMITTED")) {
+                var oNew = _buildNotif(oReq, sPrev);
+                if (!aNotifs.some(function (n) { return n.id === oNew.id; })) {
+                  aNotifs.unshift(oNew);
+                }
+              }
             }
           });
 
