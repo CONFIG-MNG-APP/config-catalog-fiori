@@ -248,6 +248,14 @@ sap.ui.define(
         var oData = this.getView().getModel("detail").getProperty("/catalog");
         if (!oData.ConfId) { MessageBox.error("ConfId is missing"); return; }
 
+        if (!oData.IsActive) {
+          MessageBox.error(
+            "Configuration '" + oData.ConfName + "' is currently inactive and cannot be maintained. " +
+            "Please contact your administrator to activate this configuration."
+          );
+          return;
+        }
+
         BusyIndicator.show(0);
         try {
           var sServiceUrl =

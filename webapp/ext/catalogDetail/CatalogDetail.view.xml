@@ -48,6 +48,8 @@
             text="Maintain via Request"
             icon="sap-icon://create"
             type="Emphasized"
+            enabled="{detail>/catalog/IsActive}"
+            tooltip="{= ${detail>/catalog/IsActive} ? 'Create a change request for this configuration' : 'This configuration is inactive and cannot be maintained'}"
             press=".onMaintainPress" />
         </f:actions>
       </f:DynamicPageTitle>
