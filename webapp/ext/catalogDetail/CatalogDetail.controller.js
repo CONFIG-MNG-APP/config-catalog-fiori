@@ -14,29 +14,39 @@ sap.ui.define(
       return new URLSearchParams(window.location.search).get("sap-client") || "324";
     }
 
-    var APP_PATH_MAP = {
-      ZI_MM_ROUTE_CONF: { local: "http://localhost:8082/index.html", deploy: "/sap/bc/ui5_ui5/sap/zconfmmroute/index.html" },
-      ZI_SD_PRICE_CONF: { local: "http://localhost:8083/index.html", deploy: "/sap/bc/ui5_ui5/sap/zconfsdprice/index.html" },
-      ZI_FI_LIMIT_CONF: { local: "http://localhost:8084/index.html", deploy: "/sap/bc/ui5_ui5/sap/zconffillimit/index.html" },
-      ZI_MM_SAFE_STOCK: { local: "http://localhost:8085/index.html", deploy: "/sap/bc/ui5_ui5/sap/zui_mm_safestk/index.html" },
+    var CDS_SEMANTIC_MAP = {
+      ZI_MM_ROUTE_CONF: { object: "MMRoute",     action: "manage"   },
+      ZI_SD_PRICE_CONF: { object: "SDPrice",     action: "manage"   },
+      ZI_FI_LIMIT_CONF: { object: "FILimit",     action: "manage"   },
+      ZI_MM_SAFE_STOCK: { object: "MMSafeStock", action: "maintain" },
     };
 
-    function _getRequestAppUrl() {
-      var sMode = localStorage.getItem("conf-mng-nav-mode") ||
-        (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-          ? "local" : "deploy");
-      return sMode === "local"
-        ? "http://localhost:8081/index.html"
-        : window.location.origin + "/sap/bc/ui5_ui5/sap/zconf_req_ui/index.html";
-    }
+    var LOCAL_PATH_MAP = {
+      ZI_MM_ROUTE_CONF: "http://localhost:8082/index.html",
+      ZI_SD_PRICE_CONF: "http://localhost:8083/index.html",
+      ZI_FI_LIMIT_CONF: "http://localhost:8084/index.html",
+      ZI_MM_SAFE_STOCK: "http://localhost:8085/index.html",
+    };
 
-    function _getConfigAppUrl(sTargetCds) {
-      var sMode = localStorage.getItem("conf-mng-nav-mode") ||
-        (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-          ? "local" : "deploy");
-      var oEntry = APP_PATH_MAP[sTargetCds] || APP_PATH_MAP["ZI_MM_ROUTE_CONF"];
-      var sPath  = oEntry[sMode] || oEntry.deploy;
-      return sMode === "deploy" ? window.location.origin + sPath : sPath;
+    function _crossNavTo(sSemanticObject, sAction, oParams) {
+      var oCrossNav = sap.ushell && sap.ushell.Container &&
+        sap.ushell.Container.getService("CrossApplicationNavigation");
+      if (oCrossNav) {
+        oCrossNav.toExternal({
+          target: { semanticObject: sSemanticObject, action: sAction },
+          params: oParams,
+        });
+      } else {
+        var sBase = sSemanticObject === "ConfRequest"
+          ? "http://localhost:8081/index.html"
+          : (LOCAL_PATH_MAP[Object.keys(CDS_SEMANTIC_MAP).find(function (k) {
+              return CDS_SEMANTIC_MAP[k].object === sSemanticObject;
+            })] || "http://localhost:8082/index.html");
+        var sQuery = Object.keys(oParams).map(function (k) {
+          return encodeURIComponent(k) + "=" + encodeURIComponent(oParams[k]);
+        }).join("&");
+        window.open(sBase + "?" + sQuery, "_self");
+      }
     }
 
     function _formatDate(sVal) {
@@ -215,32 +225,31 @@ sap.ui.define(
       onViewConfigPress: function () {
         var oData = this.getView().getModel("detail").getProperty("/catalog");
         if (!oData.ConfId) { MessageBox.error("ConfId is missing"); return; }
-        window.open(
-          _getConfigAppUrl(oData.TargetCds) +
-            "?sap-client=" + _getSapClient() +
-            "&ConfId="    + encodeURIComponent(oData.ConfId) +
-            "&ConfName="  + encodeURIComponent(oData.ConfName) +
-            "&ModuleId="  + encodeURIComponent(oData.ModuleId) +
-            "&TargetCds=" + encodeURIComponent(oData.TargetCds) +
-            "&EnvId=DEV&Mode=VIEW",
-          "_self"
-        );
+        var oSemantic = CDS_SEMANTIC_MAP[oData.TargetCds] || CDS_SEMANTIC_MAP["ZI_MM_ROUTE_CONF"];
+        _crossNavTo(oSemantic.object, oSemantic.action, {
+          "sap-client": _getSapClient(),
+          ConfId:    oData.ConfId,
+          ConfName:  oData.ConfName,
+          ModuleId:  oData.ModuleId,
+          TargetCds: oData.TargetCds,
+          EnvId:     "DEV",
+          Mode:      "VIEW",
+        });
       },
 
       // ── Action: View Requests ────────────────────────────────────────
       onViewRequestsPress: function () {
         var oData = this.getView().getModel("detail").getProperty("/catalog");
         if (!oData.ConfId) { MessageBox.error("ConfId is missing"); return; }
-        window.open(
-          _getRequestAppUrl() +
-            "?sap-client=" + _getSapClient() +
-            "&ConfId="    + encodeURIComponent(oData.ConfId) +
-            "&ConfName="  + encodeURIComponent(oData.ConfName) +
-            "&ModuleId="  + encodeURIComponent(oData.ModuleId) +
-            "&TargetCds=" + encodeURIComponent(oData.TargetCds) +
-            "&EnvId=DEV&Mode=VIEW_LIST",
-          "_self"
-        );
+        _crossNavTo("ConfRequest", "manage", {
+          "sap-client": _getSapClient(),
+          ConfId:    oData.ConfId,
+          ConfName:  oData.ConfName,
+          ModuleId:  oData.ModuleId,
+          TargetCds: oData.TargetCds,
+          EnvId:     "DEV",
+          Mode:      "VIEW_LIST",
+        });
       },
 
       // ── Action: Maintain via Request ─────────────────────────────────
@@ -301,16 +310,14 @@ sap.ui.define(
             return;
           }
 
-          window.open(
-            _getRequestAppUrl() +
-              "?sap-client=" + _getSapClient() +
-              "&ConfId="    + encodeURIComponent(oData.ConfId) +
-              "&ConfName="  + encodeURIComponent(oData.ConfName) +
-              "&ModuleId="  + encodeURIComponent(oData.ModuleId) +
-              "&TargetCds=" + encodeURIComponent(oData.TargetCds) +
-              "&EnvId=DEV",
-            "_self"
-          );
+          _crossNavTo("ConfRequest", "manage", {
+            "sap-client": _getSapClient(),
+            ConfId:    oData.ConfId,
+            ConfName:  oData.ConfName,
+            ModuleId:  oData.ModuleId,
+            TargetCds: oData.TargetCds,
+            EnvId:     "DEV",
+          });
         } catch (e) {
           BusyIndicator.hide();
           MessageBox.error(e?.message || "createRequest failed");

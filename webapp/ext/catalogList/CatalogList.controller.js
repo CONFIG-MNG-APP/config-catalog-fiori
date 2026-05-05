@@ -119,19 +119,21 @@ sap.ui.define(
         NotificationService.markRead(sId);
         if (this._oNotifPopover) { this._oNotifPopover.close(); }
         if (sReqId) {
-          // Navigate to request app to view the request detail
-          var sMode = localStorage.getItem("conf-mng-nav-mode") ||
-            (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-              ? "local" : "deploy");
-          var sBase = sMode === "local"
-            ? "http://localhost:8081/index.html"
-            : window.location.origin + "/sap/bc/ui5_ui5/sap/zconf_req_ui/index.html";
-          window.open(
-            sBase + "?sap-client=" + _getSapClient() +
-              "&ReqId=" + encodeURIComponent(sReqId) +
-              "&EnvId=" + encodeURIComponent(sEnvId),
-            "_self"
-          );
+          var oCrossNav = sap.ushell && sap.ushell.Container &&
+            sap.ushell.Container.getService("CrossApplicationNavigation");
+          if (oCrossNav) {
+            oCrossNav.toExternal({
+              target: { semanticObject: "ConfRequest", action: "manage" },
+              params: { "sap-client": _getSapClient(), ReqId: sReqId, EnvId: sEnvId },
+            });
+          } else {
+            window.open(
+              "http://localhost:8081/index.html?sap-client=" + _getSapClient() +
+                "&ReqId=" + encodeURIComponent(sReqId) +
+                "&EnvId=" + encodeURIComponent(sEnvId),
+              "_self"
+            );
+          }
         }
       },
 

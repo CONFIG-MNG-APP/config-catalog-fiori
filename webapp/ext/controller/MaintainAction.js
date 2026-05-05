@@ -7,36 +7,43 @@ sap.ui.define(
       return new URLSearchParams(window.location.search).get("sap-client") || "324";
     }
 
-    // Nav mode: "local" → localhost:8081, "deploy" → BSP path on SAP server
-    // Auto-detect by hostname; override via: localStorage.setItem("conf-mng-nav-mode", "local"/"deploy")
-    function _getRequestAppUrl() {
-      var sMode = localStorage.getItem("conf-mng-nav-mode") ||
-        (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-          ? "local" : "deploy");
-      if (sMode === "local") {
-        return "http://localhost:8081/index.html";
-      }
-      return window.location.origin + "/sap/bc/ui5_ui5/sap/zconf_req_ui/index.html";
-    }
-
     function _getReqServiceUrl() {
       return "/sap/opu/odata4/sap/zui_conf_req/srvd/sap/zsd_conf_req/0001/?sap-client=" + _getSapClient();
     }
 
-    var APP_PATH_MAP = {
-      ZI_MM_ROUTE_CONF: { local: "http://localhost:8082/index.html", deploy: "/sap/bc/ui5_ui5/sap/zconfmmroute/index.html" },
-      ZI_SD_PRICE_CONF: { local: "http://localhost:8083/index.html", deploy: "/sap/bc/ui5_ui5/sap/zconfsdprice/index.html" },
-      ZI_FI_LIMIT_CONF: { local: "http://localhost:8084/index.html", deploy: "/sap/bc/ui5_ui5/sap/zconffillimit/index.html" },
-      ZI_MM_SAFE_STOCK: { local: "http://localhost:8085/index.html", deploy: "/sap/bc/ui5_ui5/sap/zui_mm_safestk/index.html" },
+    var CDS_SEMANTIC_MAP = {
+      ZI_MM_ROUTE_CONF: { object: "MMRoute",     action: "manage"   },
+      ZI_SD_PRICE_CONF: { object: "SDPrice",     action: "manage"   },
+      ZI_FI_LIMIT_CONF: { object: "FILimit",     action: "manage"   },
+      ZI_MM_SAFE_STOCK: { object: "MMSafeStock", action: "maintain" },
     };
 
-    function _getConfigAppUrl(sTargetCds) {
-      var sMode = localStorage.getItem("conf-mng-nav-mode") ||
-        (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-          ? "local" : "deploy");
-      var oEntry = APP_PATH_MAP[sTargetCds] || APP_PATH_MAP["ZI_MM_ROUTE_CONF"];
-      var sPath  = oEntry[sMode] || oEntry.deploy;
-      return sMode === "deploy" ? window.location.origin + sPath : sPath;
+    var LOCAL_PATH_MAP = {
+      ZI_MM_ROUTE_CONF: "http://localhost:8082/index.html",
+      ZI_SD_PRICE_CONF: "http://localhost:8083/index.html",
+      ZI_FI_LIMIT_CONF: "http://localhost:8084/index.html",
+      ZI_MM_SAFE_STOCK: "http://localhost:8085/index.html",
+    };
+
+    function _crossNavTo(sSemanticObject, sAction, oParams) {
+      var oCrossNav = sap.ushell && sap.ushell.Container &&
+        sap.ushell.Container.getService("CrossApplicationNavigation");
+      if (oCrossNav) {
+        oCrossNav.toExternal({
+          target: { semanticObject: sSemanticObject, action: sAction },
+          params: oParams,
+        });
+      } else {
+        var sBase = sSemanticObject === "ConfRequest"
+          ? "http://localhost:8081/index.html"
+          : (LOCAL_PATH_MAP[Object.keys(CDS_SEMANTIC_MAP).find(function (k) {
+              return CDS_SEMANTIC_MAP[k].object === sSemanticObject;
+            })] || "http://localhost:8082/index.html");
+        var sQuery = Object.keys(oParams).map(function (k) {
+          return encodeURIComponent(k) + "=" + encodeURIComponent(oParams[k]);
+        }).join("&");
+        window.open(sBase + "?" + sQuery, "_self");
+      }
     }
 
     async function _fetchCsrfToken(sServiceUrl) {
@@ -93,17 +100,16 @@ sap.ui.define(
 
           if (!sConfId) { MessageBox.error("ConfId is missing"); return; }
 
-          window.open(
-            _getConfigAppUrl(sTargetCds) +
-              "?sap-client=" + _getSapClient() +
-              "&ConfId="    + encodeURIComponent(sConfId) +
-              "&ConfName="  + encodeURIComponent(sConfName) +
-              "&ModuleId="  + encodeURIComponent(sModuleId) +
-              "&TargetCds=" + encodeURIComponent(sTargetCds) +
-              "&EnvId=DEV"  +
-              "&Mode=VIEW",
-            "_self",
-          );
+          var oSemantic = CDS_SEMANTIC_MAP[sTargetCds] || CDS_SEMANTIC_MAP["ZI_MM_ROUTE_CONF"];
+          _crossNavTo(oSemantic.object, oSemantic.action, {
+            "sap-client": _getSapClient(),
+            ConfId:    sConfId,
+            ConfName:  sConfName,
+            ModuleId:  sModuleId,
+            TargetCds: sTargetCds,
+            EnvId:     "DEV",
+            Mode:      "VIEW",
+          });
         } catch (e) {
           console.error("onViewConfigPress error:", e);
           MessageBox.error(e?.message || "Navigation failed");
@@ -138,19 +144,15 @@ sap.ui.define(
             return;
           }
 
-          const sClient  = _getSapClient();
-          const sAppPath = _getRequestAppUrl();
-          window.open(
-            sAppPath +
-              "?sap-client=" + sClient +
-              "&ConfId="    + encodeURIComponent(sConfId) +
-              "&ConfName="  + encodeURIComponent(sConfName) +
-              "&ModuleId="  + encodeURIComponent(sModuleId) +
-              "&TargetCds=" + encodeURIComponent(sTargetCds) +
-              "&EnvId=DEV"  +
-              "&Mode=VIEW_LIST",
-            "_self",
-          );
+          _crossNavTo("ConfRequest", "manage", {
+            "sap-client": _getSapClient(),
+            ConfId:    sConfId,
+            ConfName:  sConfName,
+            ModuleId:  sModuleId,
+            TargetCds: sTargetCds,
+            EnvId:     "DEV",
+            Mode:      "VIEW_LIST",
+          });
         } catch (e) {
           console.error("onViewRequestsPress error:", e);
           MessageBox.error(e?.message || "Navigation failed");
@@ -238,18 +240,14 @@ sap.ui.define(
           }
 
           // 6. Navigate to Request App — CatalogLanding page
-          const sClient  = _getSapClient();
-          const sAppPath = _getRequestAppUrl();
-          window.open(
-            sAppPath +
-              "?sap-client=" + sClient +
-              "&ConfId="    + encodeURIComponent(sConfId) +
-              "&ConfName="  + encodeURIComponent(sConfName) +
-              "&ModuleId="  + encodeURIComponent(sModuleId) +
-              "&TargetCds=" + encodeURIComponent(sTargetCds) +
-              "&EnvId=DEV",
-            "_self",
-          );
+          _crossNavTo("ConfRequest", "manage", {
+            "sap-client": _getSapClient(),
+            ConfId:    sConfId,
+            ConfName:  sConfName,
+            ModuleId:  sModuleId,
+            TargetCds: sTargetCds,
+            EnvId:     "DEV",
+          });
         } catch (e) {
           BusyIndicator.hide();
           console.error("onMaintainPress error:", e);
