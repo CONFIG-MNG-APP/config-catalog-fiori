@@ -32,10 +32,11 @@ sap.ui.define(
       var oCrossNav = sap.ushell && sap.ushell.Container &&
         sap.ushell.Container.getService("CrossApplicationNavigation");
       if (oCrossNav) {
-        oCrossNav.toExternal({
-          target: { semanticObject: sSemanticObject, action: sAction },
-          params: oParams,
-        });
+        var oTarget = { semanticObject: sSemanticObject, action: sAction };
+        if (sSemanticObject === "ConfRequest") {
+          oTarget.appSpecificRoute = "&&/catalog";
+        }
+        oCrossNav.toExternal({ target: oTarget, params: oParams });
       } else {
         var sBase = sSemanticObject === "ConfRequest"
           ? "http://localhost:8081/index.html"
@@ -45,7 +46,11 @@ sap.ui.define(
         var sQuery = Object.keys(oParams).map(function (k) {
           return encodeURIComponent(k) + "=" + encodeURIComponent(oParams[k]);
         }).join("&");
-        window.open(sBase + "?" + sQuery, "_self");
+        if (sSemanticObject === "ConfRequest") {
+          window.open(sBase + "#catalog?" + sQuery, "_self");
+        } else {
+          window.open(sBase + "?" + sQuery, "_self");
+        }
       }
     }
 
